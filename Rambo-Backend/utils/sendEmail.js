@@ -16,7 +16,7 @@ console.log("Email configuration check:", {
 
 // Company email used for notifications.
 const COMPANY_EMAIL =
-  process.env.COMPANY_EMAIL || "rambobathaccessories@gmail.com";
+  process.env.COMPANY_EMAIL
 
 // Create the shared Gmail transporter.
 const transporter = nodemailer.createTransport({

@@ -1,4 +1,3 @@
-
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -21,12 +20,12 @@ const PORT = process.env.PORT || 5000;
 const isProduction = process.env.NODE_ENV === "production";
 
 // Configure allowed frontend origins in CLIENT_URL.
-// Multiple origins can be comma-separated.
+// Multiple origins can be comma-separated (no trailing slash).
 const allowedOrigins = (
   process.env.CLIENT_URL || "http://localhost:5173"
 )
   .split(",")
-  .map((origin) => origin.trim())
+  .map((origin) => origin.trim().replace(/\/$/, ""))
   .filter(Boolean);
 
 // Security headers
@@ -44,7 +43,7 @@ app.use(
 
       return callback(new Error("Origin not allowed by CORS"));
     },
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
@@ -53,6 +52,51 @@ app.use(
 // Limit incoming request body sizes
 app.use(express.json({ limit: "100kb" }));
 app.use(express.urlencoded({ extended: true, limit: "100kb" }));
+
+// ---- MongoDB connection (serverless-friendly) ----
+// On Vercel there is no long-running server, so we connect on demand
+// and reuse the same connection promise between requests.
+let dbPromise = null;
+const ensureDB = () => {
+  if (!dbPromise) {
+    dbPromise = connectDB().catch((err) => {
+      dbPromise = null; // allow retry on next request
+      throw err;
+    });
+  }
+  return dbPromise;
+};
+
+// Health check (does not need the database)
+app.get("/api/health", (req, res) => {
+  res.status(200).json({
+    success: true,
+    status: "OK",
+    message: "Rambo Backend is running!",
+  });
+});
+
+// Root endpoint
+app.get("/", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Welcome to Rambo Bath Accessories API",
+  });
+});
+
+// Make sure the DB is connected before any API route runs
+app.use("/api", async (req, res, next) => {
+  try {
+    await ensureDB();
+    next();
+  } catch (error) {
+    console.error("Database connection failed:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Database connection failed",
+    });
+  }
+});
 
 // General API rate limit
 const apiLimiter = rateLimit({
@@ -78,23 +122,6 @@ const contactLimiter = rateLimit({
     success: false,
     message: "Too many contact messages. Please try again in 15 minutes.",
   },
-});
-
-// Health check
-app.get("/api/health", (req, res) => {
-  res.status(200).json({
-    success: true,
-    status: "OK",
-    message: "Rambo Backend is running!",
-  });
-});
-
-// Root endpoint
-app.get("/", (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "Welcome to Rambo Bath Accessories API",
-  });
 });
 
 // API routes
@@ -152,18 +179,20 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start only after connecting to MongoDB
-const startServer = async () => {
-  try {
-    await connectDB();
-
-    app.listen(PORT, () => {
-      console.log(`Rambo API listening on port ${PORT}`);
+// Local development only: Vercel runs the exported app as a serverless
+// function, so it must NOT call app.listen there.
+if (!process.env.VERCEL) {
+  ensureDB()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`Rambo API listening on port ${PORT}`);
+      });
+    })
+    .catch((error) => {
+      console.error("Failed to start server:", error.message);
+      process.exit(1);
     });
-  } catch (error) {
-    console.error("Failed to start server:", error.message);
-    process.exit(1);
-  }
-};
+}
 
-startServer();
+// Required by Vercel
+export default app;

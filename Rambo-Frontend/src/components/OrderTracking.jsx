@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Search, Package, Truck, CheckCircle2, Building2, ArrowLeft, Loader2 } from "lucide-react";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export default function OrderTracking({ onBackToStore }) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -17,7 +18,7 @@ export default function OrderTracking({ onBackToStore }) {
     setSearched(true);
 
     try {
-      const response = await fetch(`http://localhost:5000/api/orders/lookup?query=${encodeURIComponent(searchQuery)}`);
+      const response = await fetch(`${API_URL}/api/orders/lookup?query=${encodeURIComponent(searchQuery)}`);
       const data = await response.json();
 
       if (data.success) {

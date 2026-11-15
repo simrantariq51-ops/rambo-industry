@@ -51,8 +51,15 @@ const createOrder = async (req, res) => {
     // 1. Save order to MongoDB
     const savedOrder = await newOrder.save();
 
-    // 2. Send instant email notification to company address
-    sendCompanyNotification(savedOrder);
+    // 2. Send instant email notification to company address.
+    // Wait for it: Vercel stops the function once the response is sent,
+    // so an email that is not awaited can get stuck until the next request.
+    // The try/catch keeps the order successful even if the email fails.
+    try {
+      await sendCompanyNotification(savedOrder);
+    } catch (emailError) {
+      console.error('Order email failed:', emailError);
+    }
 
     // 3. Respond to frontend
     return res.status(201).json({

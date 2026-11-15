@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { ShieldCheck, Package, ShoppingBag, BarChart3, RefreshCw } from "lucide-react";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 export default function Admin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passcode, setPasscode] = useState("");
@@ -26,14 +28,14 @@ export default function Admin() {
     setLoading(true);
     try {
       // 1. Fetch Analytics
-      const resAnalytics = await fetch("http://localhost:5000/api/admin/analytics", {
+     const resAnalytics = await fetch(`${API_URL}/api/admin/analytics`,  {
         headers: { "x-admin-key": OWNER_KEY }
       });
       const dataAnalytics = await resAnalytics.json();
       setAnalytics(dataAnalytics);
 
       // 2. Fetch Orders
-      const resOrders = await fetch("http://localhost:5000/api/orders");
+      const resOrders = await fetch(`${API_URL}/api/orders`);
       const dataOrders = await resOrders.json();
       
       // Extract array safely from multiple response formats
@@ -58,7 +60,7 @@ export default function Admin() {
 
   const handleStatusChange = async (orderId, newStatus) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/orders/${orderId}/status`, {
+     const res = await fetch(`${API_URL}/api/admin/orders/${orderId}/status`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

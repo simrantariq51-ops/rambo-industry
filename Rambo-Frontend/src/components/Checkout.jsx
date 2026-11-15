@@ -20,6 +20,8 @@ import {
   Lock,
 } from "lucide-react";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 // Small reusable section title with cyan accent
 const SectionTitle = ({ children, action }) => (
   <div className="flex items-center justify-between">
@@ -108,7 +110,7 @@ export default function Checkout({
     };
 
     try {
-      const response = await fetch("http://localhost:5000/api/orders/create", {
+      const response = await fetch(`${API_URL}/api/orders/create`,  {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

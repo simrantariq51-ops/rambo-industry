@@ -18,7 +18,7 @@ export default function OrderTracking({ onBackToStore }) {
     setSearched(true);
 
     try {
-      const response = await fetch(`${API_URL}/api/orders/lookup?query=${encodeURIComponent(searchQuery)}`);
+      const response = await fetch(`http://localhost:5000/api/orders/lookup?query=${encodeURIComponent(searchQuery)},${API_URL}/api/orders/lookup?query=${encodeURIComponent(searchQuery)}`);
       const data = await response.json();
 
       if (data.success) {

@@ -1,6 +1,78 @@
 import React, { useState } from "react";
-import { Search, Package, Truck, CheckCircle2, Building2, ArrowLeft, Loader2 } from "lucide-react";
+import {
+  Search,
+  CheckCircle2,
+  PackageCheck,
+  Truck,
+  Home,
+  ArrowLeft,
+  Loader2,
+  MapPin,
+  Phone,
+  ShoppingBag,
+} from "lucide-react";
+
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+// Same status names the Admin page uses
+const STEPS = [
+  { key: "Confirmed", label: "Confirmed", hint: "Order received", icon: CheckCircle2 },
+  { key: "Processing", label: "Processing", hint: "Being packed", icon: PackageCheck },
+  { key: "Dispatched", label: "Dispatched", hint: "On the way", icon: Truck },
+  { key: "Delivered", label: "Delivered", hint: "At your door", icon: Home },
+];
+
+function StatusTimeline({ status }) {
+  const found = STEPS.findIndex((s) => s.key === status);
+  const current = found === -1 ? 0 : found;
+  const progress = (current / (STEPS.length - 1)) * 100;
+
+  return (
+    <div className="relative grid grid-cols-4 text-center">
+      {/* Track runs from the centre of the first step to the centre of the last */}
+      <div className="absolute left-[12.5%] right-[12.5%] top-5 h-0.5 bg-slate-200">
+        <div
+          className="h-full bg-cyan-400 transition-all duration-500"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      {STEPS.map((step, i) => {
+        const Icon = step.icon;
+        const done = i < current;
+        const active = i === current;
+
+        return (
+          <div key={step.key} className="relative flex flex-col items-center gap-2">
+            <div
+              className={`flex h-10 w-10 items-center justify-center rounded-full border-2 ${
+                done
+                  ? "border-cyan-400 bg-cyan-400 text-[#0a1f44]"
+                  : active
+                  ? "border-[#0a1f44] bg-[#0a1f44] text-cyan-300 ring-4 ring-cyan-400/30"
+                  : "border-slate-200 bg-white text-slate-400"
+              }`}
+            >
+              <Icon size={18} />
+            </div>
+            <div>
+              <p
+                className={`text-xs font-bold ${
+                  done || active ? "text-[#0a1f44]" : "text-slate-400"
+                }`}
+              >
+                {step.label}
+              </p>
+              <p className="hidden text-[11px] text-slate-500 sm:block">
+                {active ? step.hint : ""}
+              </p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function OrderTracking({ onBackToStore }) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -18,134 +90,180 @@ export default function OrderTracking({ onBackToStore }) {
     setSearched(true);
 
     try {
-     const response = await fetch(`${API_URL}/api/orders/lookup?query=${encodeURIComponent(searchQuery)}`);
+      const response = await fetch(
+        `${API_URL}/api/orders/lookup?query=${encodeURIComponent(searchQuery.trim())}`
+      );
       const data = await response.json();
 
       if (data.success) {
         setOrders(data.orders);
       } else {
         setOrders([]);
-        setErrorMessage(data.message || "No orders found.");
+        setErrorMessage(
+          data.message ||
+            "No order found. Check the order ID or phone number and try again."
+        );
       }
     } catch (error) {
       console.error("Tracking error:", error);
-      setErrorMessage("Unable to connect to server. Please try again.");
+      setOrders([]);
+      setErrorMessage("Can't reach the server right now. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 md:p-8">
-      <div className="max-w-3xl mx-auto space-y-6">
-        
-        {/* Navigation / Header */}
-        <div className="flex items-center justify-between bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <button
-            onClick={onBackToStore}
-            className="flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-purple-600 transition-colors"
-          >
-            <ArrowLeft size={16} /> Back to Store
-          </button>
-          <h1 className="text-lg font-bold text-slate-900">Rambo Industry Order Tracker</h1>
-          <div className="w-16" />
-        </div>
+    // pt-24 keeps the page clear of the fixed navbar; raise or lower it to match your navbar height
+    <div className="min-h-screen bg-slate-50 px-4 pb-16 pt-24 font-sans text-slate-900 md:pt-28">
+      <div className="mx-auto max-w-3xl space-y-6">
+        <button
+          onClick={onBackToStore}
+          className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 transition-colors hover:text-cyan-600"
+        >
+          <ArrowLeft size={16} />
+          Back to store
+        </button>
 
-        {/* Search Input Box */}
-        <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-          <div className="text-center space-y-1">
-            <h2 className="text-xl font-black text-slate-900">Track Your Shipment</h2>
-            <p className="text-xs text-slate-500">Enter your Order ID (e.g., RM-704525) or Phone Number below.</p>
-          </div>
+        {/* Search panel */}
+        <section className="overflow-hidden rounded-2xl bg-[#0a1f44] p-6 shadow-lg md:p-10">
+          <h1 className="text-2xl font-black text-white md:text-3xl">Track your order</h1>
+          <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-300">
+            Enter the order ID from your confirmation (like RM-704525) or the phone
+            number you used at checkout.
+          </p>
 
-          <form onSubmit={handleTrackOrder} className="flex gap-2 pt-2">
+          <form onSubmit={handleTrackOrder} className="mt-6 flex flex-col gap-3 sm:flex-row">
             <div className="relative flex-1">
-              <Search size={18} className="absolute left-4 top-3.5 text-slate-400" />
+              <Search
+                size={18}
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              />
               <input
                 type="text"
                 required
-                placeholder="Enter Order ID or Phone Number..."
+                placeholder="Order ID or phone number"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 bg-slate-50 rounded-xl border border-slate-200 text-sm outline-none focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition-all"
+                className="w-full rounded-xl border border-transparent bg-white py-3.5 pl-11 pr-4 text-sm text-[#0a1f44] placeholder-slate-400 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/40"
               />
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-3 bg-blue-600 hover:bg-purple-600 disabled:bg-slate-400 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2"
+              className="flex items-center justify-center gap-2 rounded-xl bg-cyan-400 px-7 py-3.5 text-sm font-bold text-[#0a1f44] transition-colors hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-500 disabled:text-slate-200"
             >
-              {loading ? <Loader2 size={16} className="animate-spin" /> : "Track"}
+              {loading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Searching
+                </>
+              ) : (
+                "Track order"
+              )}
             </button>
           </form>
-        </div>
+        </section>
 
-        {/* Results Section */}
-        {searched && (
-          <div className="space-y-4">
+        {/* Results */}
+        {searched && !loading && (
+          <div className="space-y-5">
             {errorMessage && (
-              <div className="bg-red-50 border border-red-200 text-red-600 text-xs p-4 rounded-xl text-center font-semibold">
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-center text-sm font-medium text-red-700">
                 {errorMessage}
               </div>
             )}
 
             {orders.map((order) => (
-              <div key={order._id} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center border-b border-slate-100 pb-4 gap-2">
+              <article
+                key={order._id}
+                className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+              >
+                {/* Order header */}
+                <header className="flex flex-col gap-1 border-b border-slate-100 bg-slate-50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 bg-purple-50 px-2.5 py-1 rounded-full border border-purple-200">
-                      {order.paymentMethod === "cod" ? "Cash on Delivery" : "Bank Transfer"}
-                    </span>
-                    <h3 className="text-base font-bold font-mono text-slate-900 mt-2">
-                      Order ID: {order.orderNumber}
+                    <p className="text-xs text-slate-500">Order ID</p>
+                    <h2 className="font-mono text-lg font-bold text-[#0a1f44]">
+                      {order.orderNumber}
+                    </h2>
+                  </div>
+                  <div className="text-sm text-slate-600 sm:text-right">
+                    <p>
+                      Placed{" "}
+                      {new Date(order.createdAt).toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </p>
+                    <p className="font-semibold text-[#0a1f44]">
+                      {order.paymentMethod === "cod" ? "Cash on delivery" : "Bank deposit"}
+                    </p>
+                  </div>
+                </header>
+
+                {/* Status */}
+                <div className="px-6 py-8">
+                  <StatusTimeline status={order.status || "Confirmed"} />
+                </div>
+
+                {/* Delivery + items */}
+                <div className="grid gap-6 border-t border-slate-100 px-6 py-6 md:grid-cols-2">
+                  <div className="space-y-3 text-sm">
+                    <h3 className="font-bold text-[#0a1f44]">Delivering to</h3>
+                    <div className="flex items-start gap-2.5 text-slate-600">
+                      <MapPin size={16} className="mt-0.5 shrink-0 text-cyan-500" />
+                      <p className="leading-snug">
+                        <span className="font-semibold text-[#0a1f44]">{order.customerName}</span>
+                        <br />
+                        {order.address}
+                        {order.apartment ? `, ${order.apartment}` : ""}
+                        <br />
+                        {order.city}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2.5 text-slate-600">
+                      <Phone size={16} className="shrink-0 text-cyan-500" />
+                      <span>{order.phone}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 text-sm">
+                    <h3 className="flex items-center gap-2 font-bold text-[#0a1f44]">
+                      <ShoppingBag size={16} className="text-cyan-500" />
+                      Items ({order.items?.length || 0})
                     </h3>
-                  </div>
-                  <div className="text-xs text-slate-500">
-                    Placed on: {new Date(order.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                  </div>
-                </div>
-
-                {/* Timeline Status */}
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-4 text-center">Shipping Status</h4>
-                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                    <div className="space-y-1 flex flex-col items-center">
-                      <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center">
-                        <CheckCircle2 size={16} />
-                      </div>
-                      <p className="font-bold text-slate-800">Confirmed</p>
-                    </div>
-                    <div className="space-y-1 flex flex-col items-center">
-                      <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 border border-purple-200 flex items-center justify-center">
-                        <Building2 size={16} />
-                      </div>
-                      <p className="font-bold text-slate-800">Processing</p>
-                    </div>
-                    <div className="space-y-1 flex flex-col items-center">
-                      <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center">
-                        <Truck size={16} />
-                      </div>
-                      <p className="font-bold text-slate-500">Dispatched</p>
-                    </div>
+                    <ul className="space-y-2">
+                      {order.items?.map((item, i) => (
+                        <li key={item.id || i} className="flex items-center gap-3">
+                          {item.image && (
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="h-10 w-10 rounded-md border border-slate-200 object-cover"
+                            />
+                          )}
+                          <span className="flex-1 text-slate-700">
+                            {item.name}
+                            <span className="text-slate-400"> × {item.quantity}</span>
+                          </span>
+                          <span className="font-semibold text-[#0a1f44]">
+                            Rs {(item.price * item.quantity).toLocaleString()}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 </div>
 
-                {/* Summary & Items */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                  <div className="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                    <p className="font-bold text-slate-800 uppercase text-[11px] mb-2">Delivery Destination</p>
-                    <p><span className="font-semibold">Name:</span> {order.customerName}</p>
-                    <p><span className="font-semibold">Address:</span> {order.address}, {order.city}</p>
-                    <p><span className="font-semibold">Phone:</span> {order.phone}</p>
-                  </div>
-                  <div className="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                    <p className="font-bold text-slate-800 uppercase text-[11px] mb-2">Payment Details</p>
-                    <p><span className="font-semibold">Items Count:</span> {order.items?.length || 0}</p>
-                    <p><span className="font-semibold">Grand Total:</span> Rs {Math.round(order.grandTotal).toLocaleString()}</p>
-                    <p><span className="font-semibold">Status:</span> <span className="text-amber-600 font-bold">Pending Fulfillment</span></p>
-                  </div>
-                </div>
-              </div>
+                {/* Total */}
+                <footer className="flex items-baseline justify-between border-t border-slate-100 bg-slate-50 px-6 py-4">
+                  <span className="text-sm font-semibold text-slate-600">Total</span>
+                  <span className="text-xl font-black text-[#0a1f44]">
+                    Rs {Math.round(order.grandTotal).toLocaleString()}
+                  </span>
+                </footer>
+              </article>
             ))}
           </div>
         )}
